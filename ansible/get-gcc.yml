@@ -1,0 +1,7 @@
+- hosts: guests
+  become: true
+  tasks:
+    - name: Get GCC versions
+      shell: gcc --version
+      register: versions
+    - debug: var=versions.stdout

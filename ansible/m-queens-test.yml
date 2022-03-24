@@ -1,0 +1,49 @@
+- hosts: guests
+  become: true
+  tasks:
+    - name: Start fresh
+      shell: rm -rf /root/m-queens
+
+    - name: Update code base
+      copy:
+        src: /root/benchmark-testing/m-queens
+        dest: /root/
+        
+    - name: Check if already compiled
+      stat: 
+        path: /root/m-queens/m-queens-multithread.bin
+      register: result
+      
+    - name: Compile in directory if not compiled
+      shell: chdir=/root/m-queens make
+      when: result.stat.exists == false
+
+    - name: Verify compilation succeeded
+      stat:
+        path: /root/m-queens/m-queens-multithread.bin
+      register: compiled
+
+    - name: chmod 750 to the executables
+      file:
+        path: /root/m-queens/m-queens-multithread.bin
+        mode: '0750'
+      when: compiled.stat.exists == true
+
+    - name: Run multithreaded benchmark
+      shell: chdir=/root/m-queens ./m-queens-multithread.bin 19 > result.txt
+      when: compiled.stat.exists == true
+
+    - name: Wait for results
+      wait_for:
+        path: /root/m-queens/result.txt
+      
+    - name: Register if results available
+      stat:
+        path: /root/m-queens/result.txt
+      register: output
+
+    - name: Fetch results if available 
+      ansible.builtin.fetch:
+        src: /root/m-queens/result.txt
+        dest: ./results/
+      when: output.stat.exists == true 
